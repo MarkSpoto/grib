@@ -1,0 +1,45 @@
+<workflow-app name="grib-deployment-wf" xmlns="uri:oozie:workflow:0.5">
+  <!-- Define the credentials that will be used in this workflow
+   This is needed for our kerberized cluster -->
+  <credentials>
+    <credential name='hcat-creds' type='hcat'>
+      <property>
+        <name>hcat.metastore.uri</name>
+        <value>${envHCatUri}</value>
+      </property>
+      <property>
+        <name>hcat.metastore.principal</name>
+        <value>${envHCatPrincipal}</value>
+      </property>
+    </credential>
+  </credentials>
+
+  <start to="TransLevelDataPull"/>
+
+  <!-- Get initial list of claims -->
+  <action name="TransLevelDataPull" retry-max="0" retry-interval="10" cred="hcat-creds">
+    <spark xmlns="uri:oozie:spark-action:0.1">
+      <job-tracker>${envHadoopJobTracker}</job-tracker>
+      <name-node>${envHadoopNameNode}</name-node>
+      <master>yarn-cluster</master>
+      <mode>cluster</mode>
+      <name>grib-TransLevelDataPull</name>
+      <class>io.phdata.tools.grib.InvocationServices</class>
+      <jar>${envHadoopNameNode}${envHadoopAppLibPath}/${sparkGribJar}</jar>
+      <arg>${envHadoopAppRootPath}/staging</arg>
+      <arg>${envHadoopAppRootDataBasePath}</arg>
+    </spark>
+    <ok to="success"/>
+    <error to="fail"/>
+  </action>
+  <!-- Fail the workflow -->
+  <kill name="fail">
+    <message>Workflow failed, error
+      message[${wf:errorMessage(wf:lastErrorNode())}]
+    </message>
+  </kill>
+
+  <!-- End the workflow successfully -->
+  <end name="success"/>
+</workflow-app>
+
